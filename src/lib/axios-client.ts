@@ -15,18 +15,24 @@ API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Defensive check
+    if (!error.response) {
+      console.error("Network or CORS error:", error.message);
+
+      return Promise.reject({
+        message: error.message || "Network Error",
+        errorCode: "NETWORK_ERROR",
+      });
+    }
+
     const { data, status } = error.response;
 
-    // If access token expired
     if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        await axios.post(
-          `${baseURL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-        return API(originalRequest); // Retry original request
+        await axios.post(`${baseURL}/auth/refresh`, {}, { withCredentials: true });
+        return API(originalRequest);
       } catch (refreshError) {
         window.location.href = "/";
       }
@@ -40,5 +46,6 @@ API.interceptors.response.use(
     return Promise.reject(customError);
   }
 );
+
 
 export default API;
